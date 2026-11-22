@@ -1,0 +1,23 @@
+name: verify
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  docker:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free disk (image is ~8 GB)
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL && df -h /
+      - run: docker build -t neuron-2.28-trn1-inf2 .
+      - run: docker run --rm neuron-2.28-trn1-inf2 python /stack/verify.py --json
+  host:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free disk
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+      - run: sudo PIP_NO_CACHE_DIR=1 ./setup-host.sh
+      - run: /opt/neuron-2.28/bin/python verify.py --json
+      - name: Constraints block 2.29+ packages
+        run: |
+          ! /opt/neuron-2.28/bin/pip install nki==0.3.0
+          /opt/neuron-2.28/bin/pip install -U transformers && /opt/neuron-2.28/bin/pip show transformers | grep -q "Version: 4.57.6"
